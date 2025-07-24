@@ -15,9 +15,16 @@ export interface GameState {
   board: (string | null)[][];
   currentPiece: Tetromino | null;
   nextPiece: Tetromino | null;
+  holdPiece: Tetromino | null;
+  canHold: boolean;
   score: number;
   level: number;
   lines: number;
   gameOver: boolean;
   paused: boolean;
+}
+
+export interface TSpinResult {
+  isTSpin: boolean;
+  isMinimal: boolean;
 }

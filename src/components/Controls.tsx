@@ -1,5 +1,5 @@
 import React from 'react';
-import { RotateCcw, Pause, Play, RotateCw, ArrowDown } from 'lucide-react';
+import { RotateCcw, Pause, Play, RotateCw, ArrowDown, Package } from 'lucide-react';
 
 interface ControlsProps {
   isPaused: boolean;
@@ -33,6 +33,12 @@ export const Controls: React.FC<ControlsProps> = ({ isPaused, onTogglePause, onR
             <span>Rotate</span>
             <span className="text-cyan-400 flex items-center gap-1">
               <RotateCw size={14} /> ↑
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>Hold</span>
+            <span className="text-cyan-400 flex items-center gap-1">
+              <Package size={14} /> C
             </span>
           </div>
           <div className="flex items-center justify-between">

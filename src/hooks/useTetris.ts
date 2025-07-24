@@ -6,17 +6,21 @@ import {
   placeTetromino,
   clearLines,
   calculateScore,
-  getDropSpeed
+  getDropSpeed,
+  checkTSpin,
+  calculateTSpinScore
 } from '../utils/gameLogic';
 import { getRandomTetromino, rotateTetromino } from '../utils/tetrominoes';
 
 export const useTetris = () => {
   const [gameState, setGameState] = useState<GameState>(initializeGame);
+  const [lastRotated, setLastRotated] = useState<boolean>(false);
   const dropTimeRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
 
   const resetGame = useCallback(() => {
     setGameState(initializeGame());
+    setLastRotated(false);
     dropTimeRef.current = 0;
     lastTimeRef.current = 0;
   }, []);
@@ -25,9 +29,39 @@ export const useTetris = () => {
     setGameState(prev => ({ ...prev, paused: !prev.paused }));
   }, []);
 
+  const holdPiece = useCallback(() => {
+    setGameState(prev => {
+      if (!prev.currentPiece || prev.gameOver || prev.paused || !prev.canHold) return prev;
+
+      if (prev.holdPiece === null) {
+        // First time holding
+        const newNextPiece = getRandomTetromino();
+        return {
+          ...prev,
+          holdPiece: { ...prev.currentPiece, position: { x: 3, y: 0 } },
+          currentPiece: prev.nextPiece,
+          nextPiece: newNextPiece,
+          canHold: false
+        };
+      } else {
+        // Swap current and hold pieces
+        const newHoldPiece = { ...prev.currentPiece, position: { x: 3, y: 0 } };
+        const newCurrentPiece = { ...prev.holdPiece, position: { x: 3, y: 0 } };
+        
+        return {
+          ...prev,
+          holdPiece: newHoldPiece,
+          currentPiece: newCurrentPiece,
+          canHold: false
+        };
+      }
+    });
+  }, []);
   const moveTetromino = useCallback((direction: 'left' | 'right' | 'down') => {
     setGameState(prev => {
       if (!prev.currentPiece || prev.gameOver || prev.paused) return prev;
+
+      setLastRotated(false);
 
       const delta = direction === 'left' ? -1 : direction === 'right' ? 1 : 0;
       const newPosition: Position = {
@@ -47,9 +81,10 @@ export const useTetris = () => {
 
       // If moving down and can't move, place the piece
       if (direction === 'down') {
+        const tSpinResult = checkTSpin(prev.board, prev.currentPiece, lastRotated);
         const newBoard = placeTetromino(prev.board, prev.currentPiece);
         const { newBoard: clearedBoard, linesCleared } = clearLines(newBoard);
-        const scoreGained = calculateScore(linesCleared, prev.level);
+        const scoreGained = calculateTSpinScore(linesCleared, prev.level, tSpinResult.isTSpin, tSpinResult.isMinimal);
         const newLines = prev.lines + linesCleared;
         const newLevel = Math.floor(newLines / 10);
 
@@ -70,6 +105,7 @@ export const useTetris = () => {
           board: clearedBoard,
           currentPiece: nextPiece,
           nextPiece: newNextPiece,
+          canHold: true,
           score: prev.score + scoreGained,
           lines: newLines,
           level: newLevel
@@ -87,12 +123,38 @@ export const useTetris = () => {
       const rotatedPiece = rotateTetromino(prev.currentPiece);
       
       if (isValidMove(prev.board, rotatedPiece, rotatedPiece.position)) {
+        setLastRotated(true);
         return {
           ...prev,
           currentPiece: rotatedPiece
         };
       }
 
+      // Try wall kicks for T-piece
+      if (prev.currentPiece.type === 'T') {
+        const wallKicks = [
+          { x: -1, y: 0 }, { x: 1, y: 0 }, { x: 0, y: -1 },
+          { x: -1, y: -1 }, { x: 1, y: -1 }
+        ];
+
+        for (const kick of wallKicks) {
+          const kickedPosition = {
+            x: rotatedPiece.position.x + kick.x,
+            y: rotatedPiece.position.y + kick.y
+          };
+          
+          if (isValidMove(prev.board, rotatedPiece, kickedPosition)) {
+            setLastRotated(true);
+            return {
+              ...prev,
+              currentPiece: {
+                ...rotatedPiece,
+                position: kickedPosition
+              }
+            };
+          }
+        }
+      }
       return prev;
     });
   }, []);
@@ -100,6 +162,8 @@ export const useTetris = () => {
   const hardDrop = useCallback(() => {
     setGameState(prev => {
       if (!prev.currentPiece || prev.gameOver || prev.paused) return prev;
+
+      setLastRotated(false);
 
       let newY = prev.currentPiece.position.y;
       while (isValidMove(prev.board, prev.currentPiece, { 
@@ -114,9 +178,11 @@ export const useTetris = () => {
         position: { x: prev.currentPiece.position.x, y: newY }
       };
 
+      const tSpinResult = checkTSpin(prev.board, droppedPiece, lastRotated);
       const newBoard = placeTetromino(prev.board, droppedPiece);
       const { newBoard: clearedBoard, linesCleared } = clearLines(newBoard);
-      const scoreGained = calculateScore(linesCleared, prev.level) + (newY - prev.currentPiece.position.y);
+      const baseScore = calculateTSpinScore(linesCleared, prev.level, tSpinResult.isTSpin, tSpinResult.isMinimal);
+      const scoreGained = baseScore + (newY - prev.currentPiece.position.y);
       const newLines = prev.lines + linesCleared;
       const newLevel = Math.floor(newLines / 10);
 
@@ -136,6 +202,7 @@ export const useTetris = () => {
         board: clearedBoard,
         currentPiece: nextPiece,
         nextPiece: newNextPiece,
+        canHold: true,
         score: prev.score + scoreGained,
         lines: newLines,
         level: newLevel
@@ -183,6 +250,7 @@ export const useTetris = () => {
     moveTetromino,
     rotatePiece,
     hardDrop,
+    holdPiece,
     resetGame,
     togglePause
   };

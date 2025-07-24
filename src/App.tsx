@@ -2,11 +2,12 @@ import React, { useEffect } from 'react';
 import { useTetris } from './hooks/useTetris';
 import { GameBoard } from './components/GameBoard';
 import { NextPiece } from './components/NextPiece';
+import { HoldPiece } from './components/HoldPiece';
 import { GameInfo } from './components/GameInfo';
 import { Controls } from './components/Controls';
 
 function App() {
-  const { gameState, moveTetromino, rotatePiece, hardDrop, resetGame, togglePause } = useTetris();
+  const { gameState, moveTetromino, rotatePiece, hardDrop, holdPiece, resetGame, togglePause } = useTetris();
 
   useEffect(() => {
     const handleKeyPress = (event: KeyboardEvent) => {
@@ -38,6 +39,10 @@ function App() {
           event.preventDefault();
           hardDrop();
           break;
+        case 'KeyC':
+          event.preventDefault();
+          holdPiece();
+          break;
         case 'KeyP':
           event.preventDefault();
           togglePause();
@@ -51,7 +56,7 @@ function App() {
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [gameState.gameOver, moveTetromino, rotatePiece, hardDrop, resetGame, togglePause]);
+  }, [gameState.gameOver, moveTetromino, rotatePiece, hardDrop, holdPiece, resetGame, togglePause]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
@@ -63,6 +68,7 @@ function App() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Left Panel */}
           <div className="lg:col-span-1 space-y-4">
+            <HoldPiece holdPiece={gameState.holdPiece} canHold={gameState.canHold} />
             <NextPiece nextPiece={gameState.nextPiece} />
             <GameInfo gameState={gameState} />
           </div>
@@ -84,7 +90,7 @@ function App() {
         
         <div className="text-center mt-8 text-gray-400">
           <p className="text-sm">Use arrow keys to move and rotate pieces</p>
-          <p className="text-xs mt-1">Press SPACE for hard drop, P to pause, R to restart</p>
+          <p className="text-xs mt-1">Press SPACE for hard drop, C to hold, P to pause, R to restart</p>
         </div>
       </div>
     </div>
